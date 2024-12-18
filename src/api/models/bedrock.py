@@ -56,109 +56,109 @@ bedrock_client = boto3.client(
 )
 
 
-def get_inference_region_prefix():
-    if AWS_REGION.startswith('ap-'):
-        return 'apac'
-    return AWS_REGION[:2]
+# def get_inference_region_prefix():
+#     if AWS_REGION.startswith('ap-'):
+#         return 'apac'
+#     return AWS_REGION[:2]
 
 
-# https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html
-cr_inference_prefix = get_inference_region_prefix()
+# # https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html
+# cr_inference_prefix = get_inference_region_prefix()
 
-SUPPORTED_BEDROCK_EMBEDDING_MODELS = {
-    "cohere.embed-multilingual-v3": "Cohere Embed Multilingual",
-    "cohere.embed-english-v3": "Cohere Embed English",
-    # Disable Titan embedding.
-    # "amazon.titan-embed-text-v1": "Titan Embeddings G1 - Text",
-    # "amazon.titan-embed-image-v1": "Titan Multimodal Embeddings G1"
-}
+# SUPPORTED_BEDROCK_EMBEDDING_MODELS = {
+#     "cohere.embed-multilingual-v3": "Cohere Embed Multilingual",
+#     "cohere.embed-english-v3": "Cohere Embed English",
+#     # Disable Titan embedding.
+#     # "amazon.titan-embed-text-v1": "Titan Embeddings G1 - Text",
+#     # "amazon.titan-embed-image-v1": "Titan Multimodal Embeddings G1"
+# }
 
-ENCODER = tiktoken.get_encoding("cl100k_base")
-
-
-def list_bedrock_models() -> dict:
-    """Automatically getting a list of supported models.
-
-    Returns a model list combines:
-        - ON_DEMAND models.
-        - Cross-Region Inference Profiles (if enabled via Env)
-    """
-    model_list = {}
-    try:
-        profile_list = []
-        if ENABLE_CROSS_REGION_INFERENCE:
-            # List system defined inference profile IDs
-            response = bedrock_client.list_inference_profiles(
-                maxResults=1000,
-                typeEquals='SYSTEM_DEFINED'
-            )
-            profile_list = [p['inferenceProfileId'] for p in response['inferenceProfileSummaries']]
-
-        # List foundation models, only cares about text outputs here.
-        response = bedrock_client.list_foundation_models(
-            byOutputModality='TEXT'
-        )
-
-        for model in response['modelSummaries']:
-            model_id = model.get('modelId', 'N/A')
-            stream_supported = model.get('responseStreamingSupported', True)
-            status = model['modelLifecycle'].get('status', 'ACTIVE')
-
-            # currently, use this to filter out rerank models and legacy models
-            if not stream_supported or status != "ACTIVE":
-                continue
-
-            inference_types = model.get('inferenceTypesSupported', [])
-            input_modalities = model['inputModalities']
-            # Add on-demand model list
-            if 'ON_DEMAND' in inference_types:
-                model_list[model_id] = {
-                    'modalities': input_modalities
-                }
-
-            # Add cross-region inference model list.
-            profile_id = cr_inference_prefix + '.' + model_id
-            if profile_id in profile_list:
-                model_list[profile_id] = {
-                    'modalities': input_modalities
-                }
-
-    except Exception as e:
-        logger.error(f"Unable to list models: {str(e)}")
-
-    if not model_list:
-        # In case stack not updated.
-        model_list[DEFAULT_MODEL] = {
-            'modalities': ["TEXT", "IMAGE"]
-        }
-
-    return model_list
+# ENCODER = tiktoken.get_encoding("cl100k_base")
 
 
-# Initialize the model list.
-bedrock_model_list = list_bedrock_models()
+# def list_bedrock_models() -> dict:
+#     """Automatically getting a list of supported models.
+
+#     Returns a model list combines:
+#         - ON_DEMAND models.
+#         - Cross-Region Inference Profiles (if enabled via Env)
+#     """
+#     model_list = {}
+#     try:
+#         profile_list = []
+#         if ENABLE_CROSS_REGION_INFERENCE:
+#             # List system defined inference profile IDs
+#             response = bedrock_client.list_inference_profiles(
+#                 maxResults=1000,
+#                 typeEquals='SYSTEM_DEFINED'
+#             )
+#             profile_list = [p['inferenceProfileId'] for p in response['inferenceProfileSummaries']]
+
+#         # List foundation models, only cares about text outputs here.
+#         response = bedrock_client.list_foundation_models(
+#             byOutputModality='TEXT'
+#         )
+
+#         for model in response['modelSummaries']:
+#             model_id = model.get('modelId', 'N/A')
+#             stream_supported = model.get('responseStreamingSupported', True)
+#             status = model['modelLifecycle'].get('status', 'ACTIVE')
+
+#             # currently, use this to filter out rerank models and legacy models
+#             if not stream_supported or status != "ACTIVE":
+#                 continue
+
+#             inference_types = model.get('inferenceTypesSupported', [])
+#             input_modalities = model['inputModalities']
+#             # Add on-demand model list
+#             if 'ON_DEMAND' in inference_types:
+#                 model_list[model_id] = {
+#                     'modalities': input_modalities
+#                 }
+
+#             # Add cross-region inference model list.
+#             profile_id = cr_inference_prefix + '.' + model_id
+#             if profile_id in profile_list:
+#                 model_list[profile_id] = {
+#                     'modalities': input_modalities
+#                 }
+
+#     except Exception as e:
+#         logger.error(f"Unable to list models: {str(e)}")
+
+#     if not model_list:
+#         # In case stack not updated.
+#         model_list[DEFAULT_MODEL] = {
+#             'modalities': ["TEXT", "IMAGE"]
+#         }
+
+#     return model_list
+
+
+# # Initialize the model list.
+# bedrock_model_list = list_bedrock_models()
 
 
 class BedrockModel(BaseChatModel):
 
-    def list_models(self) -> list[str]:
-        """Always refresh the latest model list"""
-        global bedrock_model_list
-        bedrock_model_list = list_bedrock_models()
-        return list(bedrock_model_list.keys())
+    # def list_models(self) -> list[str]:
+    #     """Always refresh the latest model list"""
+    #     global bedrock_model_list
+    #     bedrock_model_list = list_bedrock_models()
+    #     return list(bedrock_model_list.keys())
 
-    def validate(self, chat_request: ChatRequest):
-        """Perform basic validation on requests"""
-        error = ""
-        # check if model is supported
-        if chat_request.model not in bedrock_model_list.keys():
-            error = f"Unsupported model {chat_request.model}, please use models API to get a list of supported models"
+    # def validate(self, chat_request: ChatRequest):
+    #     """Perform basic validation on requests"""
+    #     error = ""
+    #     # check if model is supported
+    #     if chat_request.model not in bedrock_model_list.keys():
+    #         error = f"Unsupported model {chat_request.model}, please use models API to get a list of supported models"
 
-        if error:
-            raise HTTPException(
-                status_code=400,
-                detail=error,
-            )
+    #     if error:
+    #         raise HTTPException(
+    #             status_code=400,
+    #             detail=error,
+    #         )
 
     def _invoke_bedrock(self, chat_request: ChatRequest, stream=False):
         """Common logic for invoke bedrock models"""
@@ -588,35 +588,35 @@ class BedrockModel(BaseChatModel):
 
         return None
 
-    def _parse_image(self, image_url: str) -> tuple[bytes, str]:
-        """Try to get the raw data from an image url.
+    # def _parse_image(self, image_url: str) -> tuple[bytes, str]:
+    #     """Try to get the raw data from an image url.
 
-        Ref: https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ImageSource.html
-        returns a tuple of (Image Data, Content Type)
-        """
-        pattern = r"^data:(image/[a-z]*);base64,\s*"
-        content_type = re.search(pattern, image_url)
-        # if already base64 encoded.
-        # Only supports 'image/jpeg', 'image/png', 'image/gif' or 'image/webp'
-        if content_type:
-            image_data = re.sub(pattern, "", image_url)
-            return base64.b64decode(image_data), content_type.group(1)
+    #     Ref: https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ImageSource.html
+    #     returns a tuple of (Image Data, Content Type)
+    #     """
+    #     pattern = r"^data:(image/[a-z]*);base64,\s*"
+    #     content_type = re.search(pattern, image_url)
+    #     # if already base64 encoded.
+    #     # Only supports 'image/jpeg', 'image/png', 'image/gif' or 'image/webp'
+    #     if content_type:
+    #         image_data = re.sub(pattern, "", image_url)
+    #         return base64.b64decode(image_data), content_type.group(1)
 
-        # Send a request to the image URL
-        response = requests.get(image_url)
-        # Check if the request was successful
-        if response.status_code == 200:
+    #     # Send a request to the image URL
+    #     response = requests.get(image_url)
+    #     # Check if the request was successful
+    #     if response.status_code == 200:
 
-            content_type = response.headers.get("Content-Type")
-            if not content_type.startswith("image"):
-                content_type = "image/jpeg"
-            # Get the image content
-            image_content = response.content
-            return image_content, content_type
-        else:
-            raise HTTPException(
-                status_code=500, detail="Unable to access the image url"
-            )
+    #         content_type = response.headers.get("Content-Type")
+    #         if not content_type.startswith("image"):
+    #             content_type = "image/jpeg"
+    #         # Get the image content
+    #         image_content = response.content
+    #         return image_content, content_type
+    #     else:
+    #         raise HTTPException(
+    #             status_code=500, detail="Unable to access the image url"
+    #         )
 
     def _parse_content_parts(
             self,
@@ -637,33 +637,33 @@ class BedrockModel(BaseChatModel):
                         "text": part.text,
                     }
                 )
-            elif isinstance(part, ImageContent):
-                if not self.is_supported_modality(model_id, modality="IMAGE"):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Multimodal message is currently not supported by {model_id}",
-                    )
-                image_data, content_type = self._parse_image(part.image_url.url)
-                content_parts.append(
-                    {
-                        "image": {
-                            "format": content_type[6:],  # image/
-                            "source": {"bytes": image_data},
-                        },
-                    }
-                )
+            # elif isinstance(part, ImageContent):
+            #     if not self.is_supported_modality(model_id, modality="IMAGE"):
+            #         raise HTTPException(
+            #             status_code=400,
+            #             detail=f"Multimodal message is currently not supported by {model_id}",
+            #         )
+            #     image_data, content_type = self._parse_image(part.image_url.url)
+            #     content_parts.append(
+            #         {
+            #             "image": {
+            #                 "format": content_type[6:],  # image/
+            #                 "source": {"bytes": image_data},
+            #             },
+            #         }
+            #     )
             else:
                 # Ignore..
                 continue
         return content_parts
 
-    @staticmethod
-    def is_supported_modality(model_id: str, modality: str = "IMAGE") -> bool:
-        model = bedrock_model_list.get(model_id)
-        modalities = model.get('modalities', [])
-        if modality in modalities:
-            return True
-        return False
+    # @staticmethod
+    # def is_supported_modality(model_id: str, modality: str = "IMAGE") -> bool:
+    #     model = bedrock_model_list.get(model_id)
+    #     modalities = model.get('modalities', [])
+    #     if modality in modalities:
+    #         return True
+    #     return False
 
     def _convert_tool_spec(self, func: Function) -> dict:
         return {
@@ -699,156 +699,156 @@ class BedrockModel(BaseChatModel):
         return None
 
 
-class BedrockEmbeddingsModel(BaseEmbeddingsModel, ABC):
-    accept = "application/json"
-    content_type = "application/json"
+# class BedrockEmbeddingsModel(BaseEmbeddingsModel, ABC):
+#     accept = "application/json"
+#     content_type = "application/json"
 
-    def _invoke_model(self, args: dict, model_id: str):
-        body = json.dumps(args)
-        if DEBUG:
-            logger.info("Invoke Bedrock Model: " + model_id)
-            logger.info("Bedrock request body: " + body)
-        try:
-            return bedrock_runtime.invoke_model(
-                body=body,
-                modelId=model_id,
-                accept=self.accept,
-                contentType=self.content_type,
-            )
-        except bedrock_runtime.exceptions.ValidationException as e:
-            logger.error("Validation Error: " + str(e))
-            raise HTTPException(status_code=400, detail=str(e))
-        except Exception as e:
-            logger.error(e)
-            raise HTTPException(status_code=500, detail=str(e))
+#     def _invoke_model(self, args: dict, model_id: str):
+#         body = json.dumps(args)
+#         if DEBUG:
+#             logger.info("Invoke Bedrock Model: " + model_id)
+#             logger.info("Bedrock request body: " + body)
+#         try:
+#             return bedrock_runtime.invoke_model(
+#                 body=body,
+#                 modelId=model_id,
+#                 accept=self.accept,
+#                 contentType=self.content_type,
+#             )
+#         except bedrock_runtime.exceptions.ValidationException as e:
+#             logger.error("Validation Error: " + str(e))
+#             raise HTTPException(status_code=400, detail=str(e))
+#         except Exception as e:
+#             logger.error(e)
+#             raise HTTPException(status_code=500, detail=str(e))
 
-    def _create_response(
-            self,
-            embeddings: list[float],
-            model: str,
-            input_tokens: int = 0,
-            output_tokens: int = 0,
-            encoding_format: Literal["float", "base64"] = "float",
-    ) -> EmbeddingsResponse:
-        data = []
-        for i, embedding in enumerate(embeddings):
-            if encoding_format == "base64":
-                arr = np.array(embedding, dtype=np.float32)
-                arr_bytes = arr.tobytes()
-                encoded_embedding = base64.b64encode(arr_bytes)
-                data.append(Embedding(index=i, embedding=encoded_embedding))
-            else:
-                data.append(Embedding(index=i, embedding=embedding))
-        response = EmbeddingsResponse(
-            data=data,
-            model=model,
-            usage=EmbeddingsUsage(
-                prompt_tokens=input_tokens,
-                total_tokens=input_tokens + output_tokens,
-            ),
-        )
-        if DEBUG:
-            logger.info("Proxy response :" + response.model_dump_json())
-        return response
-
-
-class CohereEmbeddingsModel(BedrockEmbeddingsModel):
-
-    def _parse_args(self, embeddings_request: EmbeddingsRequest) -> dict:
-        texts = []
-        if isinstance(embeddings_request.input, str):
-            texts = [embeddings_request.input]
-        elif isinstance(embeddings_request.input, list):
-            texts = embeddings_request.input
-        elif isinstance(embeddings_request.input, Iterable):
-            # For encoded input
-            # The workaround is to use tiktoken to decode to get the original text.
-            encodings = []
-            for inner in embeddings_request.input:
-                if isinstance(inner, int):
-                    # Iterable[int]
-                    encodings.append(inner)
-                else:
-                    # Iterable[Iterable[int]]
-                    text = ENCODER.decode(list(inner))
-                    texts.append(text)
-            if encodings:
-                texts.append(ENCODER.decode(encodings))
-
-        # Maximum of 2048 characters
-        args = {
-            "texts": texts,
-            "input_type": "search_document",
-            "truncate": "END",  # "NONE|START|END"
-        }
-        return args
-
-    def embed(self, embeddings_request: EmbeddingsRequest) -> EmbeddingsResponse:
-        response = self._invoke_model(
-            args=self._parse_args(embeddings_request), model_id=embeddings_request.model
-        )
-        response_body = json.loads(response.get("body").read())
-        if DEBUG:
-            logger.info("Bedrock response body: " + str(response_body))
-
-        return self._create_response(
-            embeddings=response_body["embeddings"],
-            model=embeddings_request.model,
-            encoding_format=embeddings_request.encoding_format,
-        )
+#     def _create_response(
+#             self,
+#             embeddings: list[float],
+#             model: str,
+#             input_tokens: int = 0,
+#             output_tokens: int = 0,
+#             encoding_format: Literal["float", "base64"] = "float",
+#     ) -> EmbeddingsResponse:
+#         data = []
+#         for i, embedding in enumerate(embeddings):
+#             if encoding_format == "base64":
+#                 arr = np.array(embedding, dtype=np.float32)
+#                 arr_bytes = arr.tobytes()
+#                 encoded_embedding = base64.b64encode(arr_bytes)
+#                 data.append(Embedding(index=i, embedding=encoded_embedding))
+#             else:
+#                 data.append(Embedding(index=i, embedding=embedding))
+#         response = EmbeddingsResponse(
+#             data=data,
+#             model=model,
+#             usage=EmbeddingsUsage(
+#                 prompt_tokens=input_tokens,
+#                 total_tokens=input_tokens + output_tokens,
+#             ),
+#         )
+#         if DEBUG:
+#             logger.info("Proxy response :" + response.model_dump_json())
+#         return response
 
 
-class TitanEmbeddingsModel(BedrockEmbeddingsModel):
+# class CohereEmbeddingsModel(BedrockEmbeddingsModel):
 
-    def _parse_args(self, embeddings_request: EmbeddingsRequest) -> dict:
-        if isinstance(embeddings_request.input, str):
-            input_text = embeddings_request.input
-        elif (
-                isinstance(embeddings_request.input, list)
-                and len(embeddings_request.input) == 1
-        ):
-            input_text = embeddings_request.input[0]
-        else:
-            raise ValueError(
-                "Amazon Titan Embeddings models support only single strings as input."
-            )
-        args = {
-            "inputText": input_text,
-            # Note: inputImage is not supported!
-        }
-        if embeddings_request.model == "amazon.titan-embed-image-v1":
-            args["embeddingConfig"] = (
-                embeddings_request.embedding_config
-                if embeddings_request.embedding_config
-                else {"outputEmbeddingLength": 1024}
-            )
-        return args
+#     def _parse_args(self, embeddings_request: EmbeddingsRequest) -> dict:
+#         texts = []
+#         if isinstance(embeddings_request.input, str):
+#             texts = [embeddings_request.input]
+#         elif isinstance(embeddings_request.input, list):
+#             texts = embeddings_request.input
+#         elif isinstance(embeddings_request.input, Iterable):
+#             # For encoded input
+#             # The workaround is to use tiktoken to decode to get the original text.
+#             encodings = []
+#             for inner in embeddings_request.input:
+#                 if isinstance(inner, int):
+#                     # Iterable[int]
+#                     encodings.append(inner)
+#                 else:
+#                     # Iterable[Iterable[int]]
+#                     text = ENCODER.decode(list(inner))
+#                     texts.append(text)
+#             if encodings:
+#                 texts.append(ENCODER.decode(encodings))
 
-    def embed(self, embeddings_request: EmbeddingsRequest) -> EmbeddingsResponse:
-        response = self._invoke_model(
-            args=self._parse_args(embeddings_request), model_id=embeddings_request.model
-        )
-        response_body = json.loads(response.get("body").read())
-        if DEBUG:
-            logger.info("Bedrock response body: " + str(response_body))
+#         # Maximum of 2048 characters
+#         args = {
+#             "texts": texts,
+#             "input_type": "search_document",
+#             "truncate": "END",  # "NONE|START|END"
+#         }
+#         return args
 
-        return self._create_response(
-            embeddings=[response_body["embedding"]],
-            model=embeddings_request.model,
-            input_tokens=response_body["inputTextTokenCount"],
-        )
+#     def embed(self, embeddings_request: EmbeddingsRequest) -> EmbeddingsResponse:
+#         response = self._invoke_model(
+#             args=self._parse_args(embeddings_request), model_id=embeddings_request.model
+#         )
+#         response_body = json.loads(response.get("body").read())
+#         if DEBUG:
+#             logger.info("Bedrock response body: " + str(response_body))
+
+#         return self._create_response(
+#             embeddings=response_body["embeddings"],
+#             model=embeddings_request.model,
+#             encoding_format=embeddings_request.encoding_format,
+#         )
 
 
-def get_embeddings_model(model_id: str) -> BedrockEmbeddingsModel:
-    model_name = SUPPORTED_BEDROCK_EMBEDDING_MODELS.get(model_id, "")
-    if DEBUG:
-        logger.info("model name is " + model_name)
-    match model_name:
-        case "Cohere Embed Multilingual" | "Cohere Embed English":
-            return CohereEmbeddingsModel()
-        case _:
-            logger.error("Unsupported model id " + model_id)
-            raise HTTPException(
-                status_code=400,
-                detail="Unsupported embedding model id " + model_id,
-            )
+# class TitanEmbeddingsModel(BedrockEmbeddingsModel):
+
+#     def _parse_args(self, embeddings_request: EmbeddingsRequest) -> dict:
+#         if isinstance(embeddings_request.input, str):
+#             input_text = embeddings_request.input
+#         elif (
+#                 isinstance(embeddings_request.input, list)
+#                 and len(embeddings_request.input) == 1
+#         ):
+#             input_text = embeddings_request.input[0]
+#         else:
+#             raise ValueError(
+#                 "Amazon Titan Embeddings models support only single strings as input."
+#             )
+#         args = {
+#             "inputText": input_text,
+#             # Note: inputImage is not supported!
+#         }
+#         if embeddings_request.model == "amazon.titan-embed-image-v1":
+#             args["embeddingConfig"] = (
+#                 embeddings_request.embedding_config
+#                 if embeddings_request.embedding_config
+#                 else {"outputEmbeddingLength": 1024}
+#             )
+#         return args
+
+#     def embed(self, embeddings_request: EmbeddingsRequest) -> EmbeddingsResponse:
+#         response = self._invoke_model(
+#             args=self._parse_args(embeddings_request), model_id=embeddings_request.model
+#         )
+#         response_body = json.loads(response.get("body").read())
+#         if DEBUG:
+#             logger.info("Bedrock response body: " + str(response_body))
+
+#         return self._create_response(
+#             embeddings=[response_body["embedding"]],
+#             model=embeddings_request.model,
+#             input_tokens=response_body["inputTextTokenCount"],
+#         )
+
+
+# def get_embeddings_model(model_id: str) -> BedrockEmbeddingsModel:
+#     model_name = SUPPORTED_BEDROCK_EMBEDDING_MODELS.get(model_id, "")
+#     if DEBUG:
+#         logger.info("model name is " + model_name)
+#     match model_name:
+#         case "Cohere Embed Multilingual" | "Cohere Embed English":
+#             return CohereEmbeddingsModel()
+#         case _:
+#             logger.error("Unsupported model id " + model_id)
+#             raise HTTPException(
+#                 status_code=400,
+#                 detail="Unsupported embedding model id " + model_id,
+#             )

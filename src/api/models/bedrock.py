@@ -183,28 +183,28 @@ class BedrockModel(BaseChatModel):
             raise HTTPException(status_code=500, detail=str(e))
         return response
 
-    def chat(self, chat_request: ChatRequest) -> ChatResponse:
-        """Default implementation for Chat API."""
+    # def chat(self, chat_request: ChatRequest) -> ChatResponse:
+    #     """Default implementation for Chat API."""
 
-        message_id = self.generate_message_id()
-        response = self._invoke_bedrock(chat_request)
+    #     message_id = self.generate_message_id()
+    #     response = self._invoke_bedrock(chat_request)
 
-        output_message = response["output"]["message"]
-        input_tokens = response["usage"]["inputTokens"]
-        output_tokens = response["usage"]["outputTokens"]
-        finish_reason = response["stopReason"]
+    #     output_message = response["output"]["message"]
+    #     input_tokens = response["usage"]["inputTokens"]
+    #     output_tokens = response["usage"]["outputTokens"]
+    #     finish_reason = response["stopReason"]
 
-        chat_response = self._create_response(
-            model=chat_request.model,
-            message_id=message_id,
-            content=output_message["content"],
-            finish_reason=finish_reason,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-        )
-        if DEBUG:
-            logger.info("Proxy response :" + chat_response.model_dump_json())
-        return chat_response
+    #     chat_response = self._create_response(
+    #         model=chat_request.model,
+    #         message_id=message_id,
+    #         content=output_message["content"],
+    #         finish_reason=finish_reason,
+    #         input_tokens=input_tokens,
+    #         output_tokens=output_tokens,
+    #     )
+    #     if DEBUG:
+    #         logger.info("Proxy response :" + chat_response.model_dump_json())
+    #     return chat_response
 
     def chat_stream(self, chat_request: ChatRequest) -> AsyncIterable[bytes]:
         """Default implementation for Chat Stream API"""
